@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2F6B4F">
+<title>Piano alimentare</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F5F1; --card:#FFFFFF; --ink:#1C2620; --muted:#5E6B63;
+    --basil:#2F6B4F; --basil-dark:#234F3B; --basil-soft:#DCE8DF;
+    --tomato:#C2412D; --tomato-soft:#F6DEDA; --line:#D5DDD6;
+    --display:'Bricolage Grotesque', system-ui, sans-serif;
+    --body:'Atkinson Hyperlegible', system-ui, sans-serif;
+    --nav-h:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:3px solid var(--basil);outline-offset:2px}
+  .wrap{max-width:880px;margin:0 auto;padding:0 18px}
+
+  /* Barra superiore */
+  .top{position:sticky;top:0;z-index:5;background:var(--paper);padding-top:env(safe-area-inset-top);border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex;align-items:center;gap:8px;min-height:58px}
+  .weeknav{display:flex;align-items:center;gap:4px;flex:1}
+  .weeknav .range{font-weight:700;flex:1;text-align:center}
+  .iconbtn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:22px}
+  .iconbtn:active{background:var(--basil-soft)}
+  .today-btn{padding:8px 14px;border-radius:999px;background:var(--basil-soft);color:var(--basil-dark);font-weight:700;font-size:15px}
+
+  /* Striscia giorni */
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:16px 0 6px}
+  .day{padding:8px 0 10px;border-radius:14px;text-align:center;border:1px solid transparent}
+  .day .wd{display:block;font-size:14px;color:var(--muted)}
+  .day .dn{display:block;font-family:var(--display);font-weight:700;font-size:22px}
+  .day.is-today{border-color:var(--basil)}
+  .day.on{background:var(--basil);color:#fff}
+  .day.on .wd{color:#DCE8DF}
+
+  .dayhead{margin:18px 0 6px}
+  .dayhead h1{font-family:var(--display);font-weight:700;font-size:clamp(40px,9vw,64px);line-height:1;margin:0;letter-spacing:-.02em}
+  .dayhead p{margin:6px 0 0;color:var(--muted)}
+
+  /* Pasti */
+  .meals{display:grid;gap:14px;margin:18px 0 24px}
+  @media (min-width:760px){ .meals{grid-template-columns:1fr 1fr;align-items:start} .meal.wide{grid-column:1/-1} }
+  .meal{background:var(--card);border-radius:18px;padding:6px 0;border:1px solid var(--line)}
+  .meal h2{font-family:var(--display);font-weight:700;font-size:21px;margin:10px 18px 4px}
+  .row{display:flex;align-items:baseline;gap:12px;width:100%;text-align:left;padding:11px 18px;border-top:1px solid #EDF1EE}
+  .meal h2 + .row{border-top:0}
+  .row .name{flex:1}
+  .row .g{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+  .row .hint{display:block;font-size:14px;color:var(--basil);margin-top:2px}
+  .row.swapped .name{color:var(--tomato);font-weight:700}
+  .row.swapped .hint{color:var(--muted);font-weight:400}
+  button.row:active{background:var(--basil-soft)}
+
+  /* Lista spesa */
+  .sec-title{font-family:var(--display);font-weight:700;font-size:34px;margin:22px 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 14px}
+  .group{background:var(--card);border:1px solid var(--line);border-radius:18px;margin:0 0 14px;overflow:hidden}
+  .group h3{font-family:var(--display);font-weight:700;font-size:18px;margin:0;padding:12px 18px 6px;color:var(--basil-dark)}
+  .item{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:11px 18px;border-top:1px solid #EDF1EE}
+  .group h3 + .item{border-top:0}
+  .box{width:24px;height:24px;border-radius:7px;border:2px solid var(--basil);flex:none;display:grid;place-items:center;color:#fff;font-size:15px}
+  .item.done .box{background:var(--basil)}
+  .item .txt{flex:1}
+  .item .txt small{display:block;color:var(--muted);font-size:14px}
+  .item.done .txt{color:var(--muted);text-decoration:line-through}
+  .item .qty{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+  .item.done .qty{color:var(--muted)}
+  .del{width:36px;height:36px;border-radius:50%;color:var(--muted);font-size:20px;flex:none}
+  .addrow{display:flex;gap:8px;padding:12px 18px;border-top:1px solid #EDF1EE}
+  .addrow input{flex:1;font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--paper);min-width:0}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}
+  .progress{height:8px;background:var(--basil-soft);border-radius:99px;overflow:hidden;margin:0 0 16px}
+  .progress span{display:block;height:100%;background:var(--basil)}
+
+  /* Pulsanti */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border-radius:14px;background:var(--basil);color:#fff;font-weight:700;min-height:48px}
+  .btn:active{background:var(--basil-dark)}
+  .btn.ghost{background:transparent;color:var(--basil-dark);border:1.5px solid var(--basil)}
+  .btn.small{padding:8px 14px;min-height:40px;font-size:15px}
+  .btn.danger{background:transparent;color:var(--tomato);border:1.5px solid var(--tomato)}
+  .btn[disabled]{opacity:.5}
+
+  /* Navigazione in basso */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .nav .wrap{display:grid;grid-template-columns:repeat(3,1fr);height:var(--nav-h)}
+  .nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:14px;color:var(--muted)}
+  .nav button .ic{font-size:21px;line-height:1}
+  .nav button.on{color:var(--basil-dark);font-weight:700}
+  main{padding-bottom:calc(var(--nav-h) + 30px + env(safe-area-inset-bottom))}
+
+  /* Schede iniziali */
+  .center{min-height:100vh;display:flex;align-items:center;padding:30px 0}
+  .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(44px,11vw,76px);line-height:.95;letter-spacing:-.03em;margin:0 0 16px}
+  .hero p{color:var(--muted);max-width:34em;margin:0 0 26px}
+  .stack{display:grid;gap:12px;max-width:420px}
+  .field{font:inherit;font-size:22px;letter-spacing:.12em;text-transform:uppercase;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);width:100%}
+  .or{color:var(--muted);text-align:center;margin:6px 0}
+  .code{font-family:var(--display);font-weight:700;font-size:44px;letter-spacing:.14em;margin:6px 0 14px;color:var(--basil-dark)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:0 0 14px}
+  .panel h3{font-family:var(--display);font-size:20px;margin:0 0 6px}
+  .panel p{margin:0 0 12px;color:var(--muted)}
+  .error{background:var(--tomato-soft);color:#7A2416;border-radius:14px;padding:12px 16px;margin:14px 0}
+  .loading{color:var(--muted);text-align:center;padding:40vh 0}
+
+  /* Foglio alternative */
+  .scrim{position:fixed;inset:0;background:rgba(28,38,32,.45);z-index:10}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;background:var(--card);border-radius:22px 22px 0 0;max-height:82vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);animation:up .22s ease-out}
+  @media (min-width:760px){ .sheet{left:50%;right:auto;width:560px;transform:translateX(-50%);bottom:24px;border-radius:22px} }
+  @keyframes up{from{transform:translateY(30px);opacity:0}}
+  @media (min-width:760px){ @keyframes up{from{transform:translate(-50%,30px);opacity:0}} }
+  @media (prefers-reduced-motion:reduce){ .sheet{animation:none} }
+  .sheet header{padding:18px 20px 10px;border-bottom:1px solid var(--line)}
+  .sheet header h3{font-family:var(--display);font-size:22px;margin:0}
+  .sheet header p{margin:2px 0 0;color:var(--muted)}
+  .sheet .list{overflow:auto;padding:6px 0}
+  .opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:12px 20px}
+  .opt .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none}
+  .opt.on .dot{border:7px solid var(--basil)}
+  .opt .name{flex:1}
+  .opt small{display:block;color:var(--muted);font-size:14px}
+  .opt .g{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .opt:active{background:var(--basil-soft)}
+  .sheet footer{padding:12px 20px 18px;border-top:1px solid var(--line)}
+  .sheet footer .btn{width:100%}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;z-index:20;font-size:15px}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Caricamento…</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ---------- Configurazione Firebase ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyCSPV4OnNXEHhFZx2BTCSpoDqrv-aALVe8",
+  authDomain: "piano-alimentare-e1303.firebaseapp.com",
+  projectId: "piano-alimentare-e1303",
+  storageBucket: "piano-alimentare-e1303.firebasestorage.app",
+  messagingSenderId: "500554901052",
+  appId: "1:500554901052:web:4bd42166d2caa29f5d0539"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+let db;
+try {
+  db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch (e) {
+  db = getFirestore(fbApp);
+}
+
+/* ---------- Dieta (dal PDF della dietista) ----------
+   Ogni pasto è una lista di alimenti; ogni alimento è una lista di opzioni [nome, grammi].
+   La prima opzione è quella prevista, le altre sono le alternative indicate per quel pasto. */
+const COLAZIONE = [
+  [["Latte d'avena - Isola Bio",150]],
+  [["Caffè in tazza",40]],
+  [["Fette biscottate integrali",20]],
+  [["Confettura extra di ciliegie rosse - Hero",20]],
+  [["Cereali da colazione (media)",20],["Cornflakes",20],["Biscotti ai cereali - Misura",20]]
+];
+const KEFIR = [[["Kefir di latte biologico",100]]];
+const OLIO = [[["Olio extravergine di oliva",30]]];
+
+const DAYS = [
+  { name:"Lunedì", short:"Lun", meals:{
+    colazione: COLAZIONE,
+    pranzo: [
+      [["Pasta di semola integrale",70],["Riso integrale",70],["Riso basmati (peso crudo)",70],["Couscous",70],["Patate",200]],
+      [["Pesto alla genovese",40],["Pomodori da insalata",200],["Zucchine",200],["Melanzane",125],["Fagiolini freschi",200],["Bieta",200],["Mais dolce in scatola sgocciolato",50],["Funghi coltivati prataioli",150],["Spinaci",200],["Finocchi",250],["Carote",200],["Broccoletti di rapa",200],["Carciofi",150],["Cicoria da taglio",200],["Lattuga",160],["Agretti",150],["Rughetta o rucola",100]],
+      [["Uova di gallina (intere)",120],["Mozzarella di bufala - Vallelata",50],["Mozzarella di vacca",80],["Fagioli in scatola",150],["Tonno sott'olio sgocciolato",80],["Salmone fresco",120],["Hamburger di pesce",150],["Piselli in scatola scolati",120],["Merluzzo o nasello",150],["Bastoncini surgelati",120],["Ceci in scatola scolati",120],["Lenticchie in scatola scolate",120],["Fiocchi di latte",80],["Formaggio spalmabile",80],["Merluzzo o nasello surgelato (filetti)",150],["Cuoricini di merluzzo - Pescanova",150],["Hamburger di salmone - Pescanova",150],["Petto di pollo",100],["Petto di tacchino",100],["Stracchino",100],["Caciottina fresca",80]]
+    ],
+    merenda: [
+      [["Kefir di latte biologico",100],["Yogurt magro bianco",125],["Barretta ai cereali e frutta",20],["Crackers integrali",30],["Grissini integrali",25],["Cracker Magretti - Galbusera",30],["Granetti integrali - Mulino Bianco",50],["Fruyo vaniglia - Fage",100],["LC1 Multifruit - Nestlé",100],["Frutta & Fibre - Yoga",150],["Mandorle dolci secche",20],["Pistacchi secchi",40],["Noci secche",20]]
+    ],
+    cena: [
+      [["Pane integrale",80],["Granetti integrali - Mulino Bianco",60],["Patate",200],["Pane comune",80],["Pasta di semola",70],["Riso",70],["Couscous",70],["Gnocchi",150]],
+      [["Lenticchie in scatola scolate",150],["Hamburger di manzo o vitello",100],["Vegan burger - muscolo di grano",100],["Hamburger di ceci",100],["Burger di soia e verdure - Sojasun",150],["Burger surgelati - Valsoia",150],["Hamburger vegetale - Valsoia",150],["Hamburger di pesce",170],["Hamburger di salmone - Pescanova",200],["Cotoletta vegetale - Kioene",160],["Burger di ceci - Kioene",160],["Mini burger alle melanzane - Kioene",100],["Petto di pollo",150],["Ceci in scatola scolati",150],["Fesa di tacchino cotta al forno",70],["Formaggio spalmabile",100],["Uova di gallina (intere)",120]],
+      [["Zucchine",200],["Bieta",200],["Melanzane",125],["Insalata",100],["Pomodori da insalata",200],["Peperoni",150],["Verdure grigliate - Bofrost",200],["Finocchi",250],["Fagiolini freschi",200]],
+      [["Mela",100],["Fragole",200]]
+    ],
+    giornata: OLIO
+  }},
+  { name:"Martedì", short:"Mar", meals:{
+    colazione: COLAZIONE,
+    pranzo: [
+      [["Fagioli in scatola",150]],
+      [["Pomodori da insalata",200]],
+      [["Tonno sott'olio sgocciolato",80]],
+      [["Crackers integrali",30]]
+    ],
+    merenda: KEFIR,
+    cena: [
