@@ -16,6 +16,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
+  // App: prima la rete (per ricevere gli aggiornamenti), poi la copia salvata
   if (url.origin === self.location.origin) {
     e.respondWith(
       fetch(req).then(res => {
@@ -27,6 +28,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  // Librerie Firebase e font: prima la copia salvata
   const cacheable = url.hostname === 'www.gstatic.com' || url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (cacheable) {
     e.respondWith(
@@ -37,4 +39,5 @@ self.addEventListener('fetch', e => {
       }))
     );
   }
+  // Tutto il resto (database, login) passa direttamente
 });
