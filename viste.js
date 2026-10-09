@@ -1,4 +1,4 @@
-import { S, MESI, addDays, todayIdx, isCurrentWeek, rangeLabel, esc, grams } from "./stato.js";
+import { S, MESI, addDays, iso, todayIdx, isCurrentWeek, nextMonday, rangeLabel, esc, grams } from "./stato.js";
 import { DAYS, MEALS, CAT_ORDER, NO_SHOP, category } from "./dieta.js";
 
 /* ---------- Lista della spesa ---------- */
@@ -158,12 +158,50 @@ function viewSheet(){
   </div>`;
 }
 
+function viewPianifica(){
+  const w = S.planWeek, C = S.planData.choices;
+  const isNext = iso(w) === iso(nextMonday());
+  const days = DAYS.map((day, d) => {
+    const dt = addDays(w, d);
+    const meals = MEALS.map(([m, label]) => {
+      const rows = day.meals[m].map((opts, i) => {
+        const j = C[`${d}-${m}-${i}`] || 0;
+        const [n, g] = opts[j] || opts[0];
+        if (opts.length === 1) return `<div class="pl-fixed"><span>${esc(n)}</span><span>${grams(g)}</span></div>`;
+        return `<select class="pl-sel ${j > 0 ? "swapped" : ""}" data-d="${d}" data-m="${m}" data-i="${i}" aria-label="${label} di ${day.name}">${
+          opts.map(([on, og], k) => `<option value="${k}" ${k === j ? "selected" : ""}>${esc(on)}${og != null ? ` · ${og} g` : ""}</option>`).join("")
+        }</select>`;
+      }).join("");
+      return `<div class="pl-meal"><h4>${label}</h4>${rows}</div>`;
+    }).join("");
+    return `<section class="pl-day"><h3>${day.name}<span>${dt.getDate()} ${MESI[dt.getMonth()].slice(0,3)}</span></h3>${meals}</section>`;
+  }).join("");
+  const n = Object.keys(C).length;
+  return `<div class="wrap wide">
+    <h2 class="sec-title">Organizza la settimana</h2>
+    <p class="sub">Scegli i pasti di tutta la settimana in una sola schermata. Le scelte si salvano subito e le vede tutta la famiglia.</p>
+    <div class="pl-nav">
+      <button class="iconbtn" data-action="plan-week" data-delta="-1" aria-label="Settimana precedente">‹</button>
+      <span class="range">${rangeLabel(w)}</span>
+      <button class="iconbtn" data-action="plan-week" data-delta="1" aria-label="Settimana successiva">›</button>
+      ${isNext ? `<span class="pl-tag">Prossima settimana</span>` : `<button class="today-btn" data-action="plan-week" data-delta="0">Vai alla prossima</button>`}
+    </div>
+    <div class="pl-actions">
+      <button class="btn small ghost" data-action="plan-copy">Copia la settimana prima</button>
+      <button class="btn small ghost" data-action="plan-reset" ${n ? "" : "disabled"}>Torna al piano previsto</button>
+      <button class="btn small" data-action="plan-shop">Lista della spesa di questa settimana</button>
+    </div>
+    <p class="sub">${n ? `${n} ${n === 1 ? "sostituzione" : "sostituzioni"} rispetto al piano previsto (in rosso).` : "Nessuna sostituzione: è il piano previsto dalla dieta."}</p>
+    <div class="pl-grid">${days}</div>
+  </div>`;
+}
+
 function viewMain(){
-  const content = S.tab === "spesa" ? viewSpesa() : S.tab === "famiglia" ? viewFamiglia() : viewPiano();
+  const content = S.tab === "spesa" ? viewSpesa() : S.tab === "famiglia" ? viewFamiglia() : S.tab === "pianifica" ? viewPianifica() : viewPiano();
   const tab = (id, ic, label) => `<button class="${S.tab === id ? "on" : ""}" data-action="tab" data-tab="${id}"><span class="ic" aria-hidden="true">${ic}</span>${label}</button>`;
-  return `${S.tab === "famiglia" ? "" : viewTop()}
+  return `${S.tab === "famiglia" || S.tab === "pianifica" ? "" : viewTop()}
     <main>${S.error ? `<div class="wrap"><div class="error">${esc(S.error)} <button data-action="dismiss" style="text-decoration:underline">Chiudi</button></div></div>` : ""}${content}</main>
-    <nav class="nav"><div class="wrap">${tab("piano","◐","Piano")}${tab("spesa","☰","Spesa")}${tab("famiglia","◎","Famiglia")}</div></nav>
+    <nav class="nav"><div class="wrap">${tab("piano","◐","Piano")}${tab("pianifica","▦","Organizza")}${tab("spesa","☰","Spesa")}${tab("famiglia","◎","Famiglia")}</div></nav>
     ${viewSheet()}
     ${S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : ""}`;
 }

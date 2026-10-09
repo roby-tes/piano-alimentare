@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-import { S, mondayOf, addDays, iso, todayIdx, isCurrentWeek } from "./stato.js";
+import { S, mondayOf, addDays, iso, todayIdx, isCurrentWeek, nextMonday } from "./stato.js";
 import { render } from "./viste.js";
 
 /* ---------- Configurazione Firebase ---------- */
@@ -23,7 +23,7 @@ try {
   db = getFirestore(fbApp);
 }
 
-let unsubWeek = null, unsubFam = null, toastTimer = null;
+let unsubWeek = null, unsubFam = null, unsubPlan = null, toastTimer = null;
 function toast(msg){ S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = ""; render(); }, 2200); }
 function fail(prefix){ return e => { console.error(e); S.error = `${prefix} (${e.code || e.message}).`; S.busy = false; render(); }; }
 
@@ -105,13 +105,14 @@ async function shareCode(){
 }
 
 /* ---------- Sincronizzazione ---------- */
-function weekRef(){ return doc(db, "families", S.familyId, "weeks", iso(S.week)); }
+function weekRef(w = S.week){ return doc(db, "families", S.familyId, "weeks", iso(w)); }
 function attach(){
   if (unsubFam) unsubFam();
   unsubFam = onSnapshot(doc(db, "families", S.familyId),
     s => { S.members = s.exists() ? (s.data().members || []).length : 0; render(); },
     fail("Non riesco a leggere la famiglia"));
   watchWeek();
+  watchPlan();
 }
 function watchWeek(){
   if (unsubWeek) unsubWeek();
@@ -122,9 +123,47 @@ function watchWeek(){
     render();
   }, fail("Non riesco a leggere la settimana"));
 }
-function detach(){ if (unsubWeek) unsubWeek(); if (unsubFam) unsubFam(); unsubWeek = unsubFam = null; }
+function watchPlan(){
+  if (unsubPlan) unsubPlan();
+  S.planData = { choices:{}, checked:{}, extras:{} };
+  unsubPlan = onSnapshot(weekRef(S.planWeek), s => {
+    const d = s.data() || {};
+    S.planData = { choices: d.choices || {}, checked: d.checked || {}, extras: d.extras || {} };
+    render();
+  }, fail("Non riesco a leggere la settimana da organizzare"));
+}
+function detach(){ if (unsubWeek) unsubWeek(); if (unsubFam) unsubFam(); if (unsubPlan) unsubPlan(); unsubWeek = unsubFam = unsubPlan = null; }
 
-function save(data){ setDoc(weekRef(), data, { merge:true }).catch(fail("Modifica non salvata")); }
+function save(data, w = S.week){ setDoc(weekRef(w), data, { merge:true }).catch(fail("Modifica non salvata")); }
+
+/* ---------- Organizza la settimana ---------- */
+function planChoice(key, j){ save({ choices: { [key]: j === 0 ? deleteField() : j } }, S.planWeek); }
+function planWeek(delta){
+  S.planWeek = delta === 0 ? nextMonday() : addDays(S.planWeek, 7*delta);
+  watchPlan(); render();
+}
+async function replacePlanChoices(choices){
+  const { checked, extras } = S.planData;
+  await setDoc(weekRef(S.planWeek), { choices, checked, extras });
+}
+async function planCopyPrevious(){
+  if (Object.keys(S.planData.choices).length && !confirm("Le scelte già fatte per questa settimana verranno sostituite. Continuare?")) return;
+  try {
+    const snap = await getDoc(weekRef(addDays(S.planWeek, -7)));
+    const choices = snap.exists() ? (snap.data().choices || {}) : {};
+    await replacePlanChoices(choices);
+    toast(Object.keys(choices).length ? "Scelte copiate dalla settimana prima" : "La settimana prima seguiva il piano previsto");
+  } catch (e){ fail("Copia non riuscita")(e); }
+}
+async function planReset(){
+  if (!confirm("Vuoi tornare al piano previsto dalla dieta per tutta la settimana?")) return;
+  try { await replacePlanChoices({}); toast("Piano previsto ripristinato"); }
+  catch (e){ fail("Ripristino non riuscito")(e); }
+}
+function planToShopping(){
+  S.week = new Date(S.planWeek); S.day = isCurrentWeek() ? todayIdx() : 0;
+  watchWeek(); S.tab = "spesa"; render(); scrollTo(0,0);
+}
 function setChoice(key, j){ save({ choices: { [key]: j === 0 ? deleteField() : j } }); }
 function toggleChecked(name){ save({ checked: { [name]: S.data.checked[name] ? deleteField() : true } }); }
 function addExtra(t){
@@ -168,6 +207,14 @@ document.addEventListener("click", e => {
   else if (a === "extra-toggle") toggleExtra(b.dataset.id);
   else if (a === "extra-del") deleteExtra(b.dataset.id);
   else if (a === "dismiss") { S.error = ""; render(); }
+  else if (a === "plan-week") planWeek(+b.dataset.delta);
+  else if (a === "plan-copy") planCopyPrevious();
+  else if (a === "plan-reset") planReset();
+  else if (a === "plan-shop") planToShopping();
+});
+document.addEventListener("change", e => {
+  const sel = e.target.closest(".pl-sel"); if (!sel) return;
+  planChoice(`${sel.dataset.d}-${sel.dataset.m}-${sel.dataset.i}`, +sel.value);
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && S.sheet){ S.sheet = null; render(); }
