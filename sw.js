@@ -1,4 +1,4 @@
-const CACHE = 'piano-v2';
+const CACHE = 'piano-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', e => {
   // App: prima la rete (per ricevere gli aggiornamenti), poi la copia salvata
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(req).then(res => {
+      fetch(req, { cache: 'no-cache' }).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));
         return res;
