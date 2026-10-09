@@ -130,10 +130,21 @@ export const DAYS = [
 /* Le liste del lunedì valgono come tabella delle alternative per tutta la settimana:
    ogni alimento degli altri giorni riceve le alternative del gruppo del lunedì in cui compare (stesso pasto). */
 const MONDAY = DAYS[0].meals;
+/* Alimenti che non compaiono nelle liste del lunedì ma vanno trattati come un alimento del gruppo indicato */
+const STESSO_GRUPPO_DI = {
+  "Crackers integrali": "Pasta di semola integrale",          // carboidrati del pranzo
+  "Tortellini freschi": "Pasta di semola integrale",          // carboidrati del pranzo
+  "Spigola": "Uova di gallina (intere)",                      // proteine del pranzo
+  "Vitellone (tagli magri)": "Uova di gallina (intere)",      // proteine del pranzo
+  "Sugo di pomodoro": "Pesto alla genovese",                  // condimento/verdure del pranzo
+  "Piadina": "Pane integrale",                                // carboidrati della cena
+  "Pizza pomodoro e mozzarella": "Lenticchie in scatola scolate" // proteine della cena
+};
 for (const day of DAYS.slice(1)) {
   for (const m of ["pranzo","merenda","cena"]) {
     day.meals[m] = day.meals[m].map(opts => {
-      const group = MONDAY[m].find(gr => gr.some(([n]) => n === opts[0][0]));
+      const ref = STESSO_GRUPPO_DI[opts[0][0]] || opts[0][0];
+      const group = MONDAY[m].find(gr => gr.some(([n]) => n === ref));
       if (!group) return opts;
       const have = new Set(opts.map(([n]) => n));
       return [...opts, ...group.filter(([n]) => !have.has(n))];
