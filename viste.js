@@ -1,4 +1,4 @@
-import { S, MESI, addDays, iso, todayIdx, isCurrentWeek, nextMonday, rangeLabel, esc, grams } from "./stato.js";
+import { S, MESI, addDays, iso, todayIdx, isCurrentWeek, nextMonday, rangeLabel, esc, grams, isBuy } from "./stato.js";
 import { DAYS, MEALS, CAT_ORDER, NO_SHOP, category } from "./dieta.js";
 
 /* ---------- Lista della spesa ---------- */
@@ -86,36 +86,45 @@ function viewPiano(){
 
 function viewSpesa(){
   const list = shoppingList(); S.shop = list;
+  const T = S.data.toBuy;
   const extras = Object.entries(S.data.extras).sort((a,b) => a[0].localeCompare(b[0]));
-  const total = list.length + extras.length;
-  const done = list.filter(it => S.data.checked[it.n]).length + extras.filter(([,x]) => x.done).length;
+  const indexed = list.map((it, idx) => [it, idx]);
+  const buyItems = indexed.filter(([it]) => T[it.n]);
+  const buyExtras = extras.filter(([,x]) => isBuy(x));
+  const n = buyItems.length + buyExtras.length;
+
+  const tiles = buyItems.map(([it, idx]) => `<button class="tile" data-action="buy" data-idx="${idx}" aria-label="${esc(it.n)}: segna come comprato">
+      <span class="t-name">${esc(it.n)}</span><span class="t-qty">${grams(it.g)}</span></button>`)
+    .concat(buyExtras.map(([id, x]) => `<button class="tile" data-action="extra-toggle" data-id="${id}" aria-label="${esc(x.t)}: segna come comprato">
+      <span class="t-name">${esc(x.t)}</span></button>`)).join("");
+
   const groups = CAT_ORDER.map(cat => {
-    const items = list.map((it, idx) => [it, idx]).filter(([it]) => it.cat === cat);
+    const items = indexed.filter(([it]) => it.cat === cat && !T[it.n]);
     if (!items.length) return "";
-    return `<section class="group"><h3>${cat}</h3>${items.map(([it, idx]) => {
-      const on = !!S.data.checked[it.n];
-      return `<button class="item ${on ? "done" : ""}" data-action="check" data-idx="${idx}" aria-pressed="${on}">
-        <span class="box">${on ? "✓" : ""}</span>
+    return `<section class="group"><h3>${cat}</h3>${items.map(([it, idx]) => `<button class="item" data-action="buy" data-idx="${idx}" aria-label="${esc(it.n)}: aggiungi alle cose da comprare">
+        <span class="plus" aria-hidden="true">+</span>
         <span class="txt">${esc(it.n)}<small>${[...it.days].join(", ")}</small></span>
-        <span class="qty">${qtyLabel(it)}</span></button>`;
-    }).join("")}</section>`;
+        <span class="qty">${qtyLabel(it)}</span></button>`).join("")}</section>`;
   }).join("");
 
-  const extraRows = extras.map(([id, x]) => `<div class="item ${x.done ? "done" : ""}" style="padding-right:8px">
-      <button class="box" data-action="extra-toggle" data-id="${id}" aria-label="Segna come preso">${x.done ? "✓" : ""}</button>
+  const others = extras.filter(([,x]) => !isBuy(x));
+  const otherGroup = others.length ? `<section class="group"><h3>Altri prodotti</h3>${others.map(([id, x]) => `<div class="item">
+      <button class="plus" data-action="extra-toggle" data-id="${id}" aria-label="${esc(x.t)}: aggiungi alle cose da comprare">+</button>
       <span class="txt">${esc(x.t)}</span>
-      <button class="del" data-action="extra-del" data-id="${id}" aria-label="Elimina">×</button></div>`).join("");
+      <button class="del" data-action="extra-del" data-id="${id}" aria-label="Elimina ${esc(x.t)}">×</button></div>`).join("")}</section>` : "";
 
   return `<div class="wrap">
-    <h2 class="sec-title">Lista della spesa</h2>
-    <p class="sub">Quantità per la settimana del ${rangeLabel()}, calcolate sulle scelte del piano.</p>
-    <div class="bar"><span>${done} di ${total} presi</span>${done ? `<button class="btn small ghost" data-action="clear">Togli le spunte</button>` : ""}</div>
-    <div class="progress"><span style="width:${total ? Math.round(done/total*100) : 0}%"></span></div>
-    ${groups}
-    <section class="group"><h3>Altro da comprare</h3>${extraRows}
-      <div class="addrow"><input id="extra-input" placeholder="Aggiungi qualcosa" aria-label="Aggiungi qualcosa alla lista" enterkeyhint="done">
-      <button class="btn small" data-action="extra-add">Aggiungi</button></div>
+    <section class="tobuy">
+      <div class="tobuy-head"><h2>Cose da comprare</h2><span class="count">${n}</span></div>
+      ${n ? `<div class="tiles">${tiles}</div><p class="tobuy-note">Tocca un prodotto quando l'hai comprato: torna nell'elenco qui sotto.</p>`
+          : `<p class="tobuy-note">Niente da comprare. Tocca i prodotti dell'elenco qui sotto per aggiungerli.</p>`}
+      <div class="addrow"><input id="extra-input" placeholder="Aggiungi un altro prodotto" aria-label="Aggiungi un altro prodotto" enterkeyhint="done">
+        <button class="btn small" data-action="extra-add">Aggiungi</button></div>
+      ${n ? `<div class="tobuy-actions"><button class="btn small light" data-action="copy-list">Copia la lista</button><button class="btn small light" data-action="all-bought">Tutto comprato</button></div>` : ""}
     </section>
+    <h2 class="sec-title">Elenco della settimana</h2>
+    <p class="sub">Quantità per la settimana del ${rangeLabel()}, calcolate sulle scelte del piano. Tocca un prodotto per aggiungerlo alle cose da comprare.</p>
+    ${groups}${otherGroup}
   </div>`;
 }
 

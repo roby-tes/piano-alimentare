@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-import { S, mondayOf, addDays, iso, todayIdx, isCurrentWeek, nextMonday } from "./stato.js";
+import { S, mondayOf, addDays, iso, todayIdx, isCurrentWeek, nextMonday, isBuy, grams } from "./stato.js";
 import { render } from "./viste.js";
 
 /* ---------- Configurazione Firebase ---------- */
@@ -116,19 +116,19 @@ function attach(){
 }
 function watchWeek(){
   if (unsubWeek) unsubWeek();
-  S.data = { choices:{}, checked:{}, extras:{} };
+  S.data = { choices:{}, toBuy:{}, extras:{} };
   unsubWeek = onSnapshot(weekRef(), s => {
     const d = s.data() || {};
-    S.data = { choices: d.choices || {}, checked: d.checked || {}, extras: d.extras || {} };
+    S.data = { choices: d.choices || {}, toBuy: d.toBuy || {}, extras: d.extras || {} };
     render();
   }, fail("Non riesco a leggere la settimana"));
 }
 function watchPlan(){
   if (unsubPlan) unsubPlan();
-  S.planData = { choices:{}, checked:{}, extras:{} };
+  S.planData = { choices:{}, toBuy:{}, extras:{} };
   unsubPlan = onSnapshot(weekRef(S.planWeek), s => {
     const d = s.data() || {};
-    S.planData = { choices: d.choices || {}, checked: d.checked || {}, extras: d.extras || {} };
+    S.planData = { choices: d.choices || {}, toBuy: d.toBuy || {}, extras: d.extras || {} };
     render();
   }, fail("Non riesco a leggere la settimana da organizzare"));
 }
@@ -143,8 +143,9 @@ function planWeek(delta){
   watchPlan(); render();
 }
 async function replacePlanChoices(choices){
-  const { checked, extras } = S.planData;
-  await setDoc(weekRef(S.planWeek), { choices, checked, extras });
+  const ref = weekRef(S.planWeek);
+  try { await updateDoc(ref, { choices }); }
+  catch (e){ await setDoc(ref, { choices }, { merge:true }); }
 }
 async function planCopyPrevious(){
   if (Object.keys(S.planData.choices).length && !confirm("Le scelte già fatte per questa settimana verranno sostituite. Continuare?")) return;
@@ -165,18 +166,25 @@ function planToShopping(){
   watchWeek(); S.tab = "spesa"; render(); scrollTo(0,0);
 }
 function setChoice(key, j){ save({ choices: { [key]: j === 0 ? deleteField() : j } }); }
-function toggleChecked(name){ save({ checked: { [name]: S.data.checked[name] ? deleteField() : true } }); }
+function toggleBuy(name){ save({ toBuy: { [name]: S.data.toBuy[name] ? deleteField() : true } }); }
 function addExtra(t){
   t = t.trim(); if (!t) return;
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-  save({ extras: { [id]: { t, done:false } } });
+  save({ extras: { [id]: { t, buy:true } } });
 }
-function toggleExtra(id){ const x = S.data.extras[id]; if (x) save({ extras: { [id]: { t:x.t, done:!x.done } } }); }
+function toggleExtra(id){ const x = S.data.extras[id]; if (x) save({ extras: { [id]: { t:x.t, buy:!isBuy(x) } } }); }
 function deleteExtra(id){ save({ extras: { [id]: deleteField() } }); }
-function clearChecks(){
+function allBought(){
+  if (!confirm("Segnare tutto come comprato?")) return;
   const extras = {};
-  for (const [id,x] of Object.entries(S.data.extras)) extras[id] = { t:x.t, done:false };
-  updateDoc(weekRef(), { checked: {}, extras }).catch(() => {});
+  for (const [id,x] of Object.entries(S.data.extras)) extras[id] = { t:x.t, buy:false };
+  updateDoc(weekRef(), { toBuy: {}, extras }).catch(fail("Modifica non salvata"));
+}
+async function copyList(){
+  const lines = S.shop.filter(it => S.data.toBuy[it.n]).map(it => `- ${it.n} (${grams(it.g)})`)
+    .concat(Object.values(S.data.extras).filter(isBuy).map(x => `- ${x.t}`));
+  try { await navigator.clipboard.writeText(lines.join("\n")); toast("Lista copiata"); }
+  catch (e){ toast("Non riesco a copiare la lista"); }
 }
 
 function goWeek(delta){
@@ -201,8 +209,9 @@ document.addEventListener("click", e => {
   else if (a === "swap") { S.sheet = { m:b.dataset.m, i:+b.dataset.i }; render(); }
   else if (a === "pick") { const { m, i } = S.sheet; setChoice(`${S.day}-${m}-${i}`, +b.dataset.j); S.sheet = null; render(); }
   else if (a === "close") { S.sheet = null; render(); }
-  else if (a === "check") { const it = S.shop[+b.dataset.idx]; if (it) toggleChecked(it.n); }
-  else if (a === "clear") clearChecks();
+  else if (a === "buy") { const it = S.shop[+b.dataset.idx]; if (it) toggleBuy(it.n); }
+  else if (a === "all-bought") allBought();
+  else if (a === "copy-list") copyList();
   else if (a === "extra-add") { const el = document.getElementById("extra-input"); addExtra(el.value); el.value = ""; }
   else if (a === "extra-toggle") toggleExtra(b.dataset.id);
   else if (a === "extra-del") deleteExtra(b.dataset.id);

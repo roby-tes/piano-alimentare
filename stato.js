@@ -16,10 +16,11 @@ export function rangeLabel(w = S.week){
 export const S = {
   user:null, authReady:false, profileLoaded:false, familyId:null, members:0,
   tab:"piano", week:mondayOf(new Date()), day:todayIdx(),
-  data:{ choices:{}, checked:{}, extras:{} },
-  planWeek:addDays(mondayOf(new Date()), 7), planData:{ choices:{}, checked:{}, extras:{} },
+  data:{ choices:{}, toBuy:{}, extras:{} },
+  planWeek:addDays(mondayOf(new Date()), 7), planData:{ choices:{}, toBuy:{}, extras:{} },
   sheet:null, error:"", busy:false, toast:"", shop:[]
 };
 
 export function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 export function grams(g){ if (g == null) return ""; return g >= 1000 ? `${String(Math.round(g/100)/10).replace(".",",")} kg` : `${g} g`; }
+export function isBuy(x){ return x.buy !== undefined ? x.buy : !x.done; }
